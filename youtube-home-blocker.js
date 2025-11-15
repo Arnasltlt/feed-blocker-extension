@@ -29,8 +29,11 @@
   const rerankCache = new Map();
   let lastVideoHash = null;
   let rerankDebounceTimer = null;
+  let lastRenderedGroups = null;
   const RERANK_DEBOUNCE_MS = 2000;
   const CACHE_TTL_MS = 5 * 60 * 1000;
+  const SHOW_THUMBNAILS_KEY = 'feed-blocker-show-thumbnails';
+  let showThumbnails = JSON.parse(localStorage.getItem(SHOW_THUMBNAILS_KEY) || 'false');
 
   const isHomePage = () => {
     return window.location.hostname === HOME_HOSTNAME && window.location.pathname === HOME_PATHNAME;
@@ -314,17 +317,59 @@
     container.id = TITLE_LIST_ID;
     container.style.cssText =
       'padding: 20px; max-width: 1400px; margin: 0 auto; color: #fff; font-family: Roboto, Arial, sans-serif; position: relative; z-index: 9999; background-color: #0f0f0f; min-height: 200px;';
-    if (headerText) {
-      const heading = document.createElement('h2');
-      heading.textContent = headerText;
-      heading.style.cssText = 'margin: 0 0 12px; font-size: 20px; font-weight: 500;';
-      container.appendChild(heading);
-    }
-    if (descriptionText) {
-      const description = document.createElement('p');
-      description.textContent = descriptionText;
-      description.style.cssText = 'margin: 0 0 16px; font-size: 14px; opacity: 0.8;';
-      container.appendChild(description);
+    if (headerText || descriptionText) {
+      const headerRow = document.createElement('div');
+      headerRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; gap: 12px;';
+      const headingWrapper = document.createElement('div');
+      if (headerText) {
+        const heading = document.createElement('h2');
+        heading.textContent = headerText;
+        heading.style.cssText = 'margin: 0 0 6px; font-size: 20px; font-weight: 500;';
+        headingWrapper.appendChild(heading);
+      }
+      if (descriptionText) {
+        const description = document.createElement('p');
+        description.textContent = descriptionText;
+        description.style.cssText = 'margin: 0; font-size: 14px; opacity: 0.8;';
+        headingWrapper.appendChild(description);
+      }
+      headerRow.appendChild(headingWrapper);
+
+      const toggleWrapper = document.createElement('label');
+      toggleWrapper.style.cssText = 'display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;';
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.checked = showThumbnails;
+      toggle.addEventListener('change', () => {
+        showThumbnails = toggle.checked;
+        localStorage.setItem(SHOW_THUMBNAILS_KEY, JSON.stringify(showThumbnails));
+        if (lastRenderedGroups && titleListContainer) {
+          const parent = titleListContainer.parentNode;
+          const referenceSibling = titleListContainer.nextSibling;
+          removeTitleList();
+          const groupedPanel = createGroupedPanel(lastRenderedGroups, {
+            headerText: headerText || CUSTOM_FEED_TITLE,
+            descriptionText: descriptionText || CUSTOM_FEED_DESCRIPTION
+          });
+          if (parent) {
+            if (referenceSibling) {
+              parent.insertBefore(groupedPanel, referenceSibling);
+            } else {
+              parent.appendChild(groupedPanel);
+            }
+          }
+          titleListContainer = groupedPanel;
+        } else {
+          lastVideoHash = null;
+          scheduleCheck();
+        }
+      });
+      const thumbLabel = document.createElement('span');
+      thumbLabel.textContent = 'Show thumbnails';
+      toggleWrapper.appendChild(toggle);
+      toggleWrapper.appendChild(thumbLabel);
+      headerRow.appendChild(toggleWrapper);
+      container.appendChild(headerRow);
     }
     if (!Array.isArray(groups) || groups.length === 0) {
       const message = document.createElement('p');
@@ -354,24 +399,43 @@
       (group.videos || []).forEach((video) => {
         const listItem = document.createElement('li');
         listItem.style.cssText =
-          'margin-bottom: 10px; padding: 8px; border-radius: 6px; background-color: rgba(255,255,255,0.05);';
+          'display: flex; gap: 8px; margin-bottom: 10px; padding: 8px; border-radius: 6px; background-color: rgba(255,255,255,0.05);';
+
+        if (showThumbnails) {
+          const videoId = extractVideoId(video.url);
+          if (videoId) {
+            const thumbnail = document.createElement('img');
+            thumbnail.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+            thumbnail.alt = video.title;
+            thumbnail.loading = 'lazy';
+            thumbnail.style.cssText = 'width: 64px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0;';
+            listItem.appendChild(thumbnail);
+          }
+        }
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.cssText = 'display: flex; flex-direction: column;';
+
         const link = document.createElement('a');
         link.href = video.url;
         link.textContent = video.title;
-        link.style.cssText = 'color: #fff; text-decoration: none; font-size: 14px; display: block;';
+        link.style.cssText = 'color: #fff; text-decoration: none; font-size: 14px;';
         link.addEventListener('mouseenter', () => {
           link.style.textDecoration = 'underline';
         });
         link.addEventListener('mouseleave', () => {
           link.style.textDecoration = 'none';
         });
+        contentWrapper.appendChild(link);
+
         if (video.channel) {
           const channel = document.createElement('span');
           channel.textContent = video.channel;
-          channel.style.cssText = 'display: block; font-size: 12px; opacity: 0.75; margin-top: 4px;';
-          link.appendChild(channel);
+          channel.style.cssText = 'font-size: 12px; opacity: 0.75; margin-top: 4px;';
+          contentWrapper.appendChild(channel);
         }
-        listItem.appendChild(link);
+
+        listItem.appendChild(contentWrapper);
         list.appendChild(listItem);
       });
       section.appendChild(list);
@@ -609,6 +673,22 @@
     }
   };
 
+  const extractVideoId = (url) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.includes('youtu')) {
+        if (parsed.pathname === '/watch') {
+          return parsed.searchParams.get('v') || '';
+        }
+        const segments = parsed.pathname.split('/');
+        return segments.pop() || segments.pop() || '';
+      }
+    } catch (error) {
+      return '';
+    }
+    return '';
+  };
+
   const prepareVideoPayload = (videos) => {
     if (!Array.isArray(videos)) {
       return { truncated: [], remainder: [], videoHash: '' };
@@ -687,12 +767,14 @@
           }
           const hasCustom = Array.isArray(groupedResult) && groupedResult.length > 0;
           if (hasCustom) {
-            insertGroupedList(groupedResult, feedContainer, {
+        lastRenderedGroups = groupedResult ? cloneGroups(groupedResult) : null;
+        insertGroupedList(groupedResult, feedContainer, {
               headerText: CUSTOM_FEED_TITLE,
               descriptionText: CUSTOM_FEED_DESCRIPTION
             });
             return;
           }
+          lastRenderedGroups = null;
           insertTitleList(videos, feedContainer, {
             headerText: 'Original order (fallback)',
             descriptionText: FALLBACK_DESCRIPTION
@@ -703,6 +785,7 @@
             return;
           }
           console.error('[feed-blocker] Unable to render custom feed:', error);
+          lastRenderedGroups = null;
           insertTitleList(videos, feedContainer, {
             headerText: 'Original order (fallback)',
             descriptionText: FALLBACK_DESCRIPTION
