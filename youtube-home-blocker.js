@@ -12,12 +12,25 @@
   const TITLE_LIST_ID = 'feed-blocker-title-list';
   const PLACEHOLDER_TEXT = 'Feed blocked. Titles will appear once YouTube is done loading.';
   const CHECK_DELAY_MS = 120;
+  const RERANK_MESSAGE_TYPE = 'RERANK_VIDEOS';
+  const MAX_RERANK_ITEMS = 30;
+  const CUSTOM_FEED_TITLE = 'Custom feed (Groq)';
+  const CUSTOM_FEED_DESCRIPTION = 'Videos reordered for deep, learning-focused sessions.';
+  const LOADING_DESCRIPTION = 'Re-ranking your recommendations with Groq. This may take a moment.';
+  const LOADING_MESSAGE = 'Generating custom feed via Groq...';
+  const FALLBACK_DESCRIPTION = 'Could not reach the local Groq server. Showing the original YouTube order.';
 
   const hiddenElements = new Set();
   const previousDisplay = new WeakMap();
   let scheduledCheckId = null;
   let mutationObserver;
   let titleListContainer = null;
+  let latestRerankRequestId = 0;
+  const rerankCache = new Map();
+  let lastVideoHash = null;
+  let rerankDebounceTimer = null;
+  const RERANK_DEBOUNCE_MS = 2000;
+  const CACHE_TTL_MS = 5 * 60 * 1000;
 
   const isHomePage = () => {
     return window.location.hostname === HOME_HOSTNAME && window.location.pathname === HOME_PATHNAME;
@@ -205,14 +218,14 @@
           return typeof href === 'string' && href.includes(WATCH_PATH_FRAGMENT);
         });
       }
-      let href = '';
+      let url = '';
       if (anchor) {
-        href = toAbsoluteUrl(anchor.getAttribute('href') || '');
+        url = toAbsoluteUrl(anchor.getAttribute('href') || '');
       }
-      if (!href && renderer) {
-        href = getHrefFromRenderer(renderer);
+      if (!url && renderer) {
+        url = getHrefFromRenderer(renderer);
       }
-      if (!href) {
+      if (!url) {
         return;
       }
       const titleNode =
@@ -228,24 +241,47 @@
       if (!text || looksLikeDuration(text)) {
         return;
       }
-      const key = `${href}::${text}`;
+      const key = `${url}::${text}`;
       if (seen.has(key)) {
         return;
       }
       seen.add(key);
-      titles.push({ text, href });
+      const channelNode =
+        item.querySelector('#channel-name a, #channel-name yt-formatted-string, yt-formatted-string.ytd-channel-name') ||
+        null;
+      const channel =
+        (channelNode && typeof channelNode.textContent === 'string' && channelNode.textContent.trim()) || '';
+      titles.push({
+        title: text,
+        url,
+        channel,
+        position: titles.length
+      });
     });
     return titles;
   };
 
-  const createTitlePanel = (titles) => {
+  const createTitlePanel = (titles, options = {}) => {
+    const { headerText = '', descriptionText = '', emptyMessage = PLACEHOLDER_TEXT } = options || {};
     const container = document.createElement('div');
     container.id = TITLE_LIST_ID;
     container.style.cssText =
       'padding: 20px; max-width: 1200px; margin: 0 auto; color: #fff; font-family: Roboto, Arial, sans-serif; position: relative; z-index: 9999; background-color: #0f0f0f; min-height: 200px;';
+    if (headerText) {
+      const heading = document.createElement('h2');
+      heading.textContent = headerText;
+      heading.style.cssText = 'margin: 0 0 12px; font-size: 20px; font-weight: 500;';
+      container.appendChild(heading);
+    }
+    if (descriptionText) {
+      const description = document.createElement('p');
+      description.textContent = descriptionText;
+      description.style.cssText = 'margin: 0 0 16px; font-size: 14px; opacity: 0.8;';
+      container.appendChild(description);
+    }
     if (titles.length === 0) {
       const message = document.createElement('p');
-      message.textContent = PLACEHOLDER_TEXT;
+      message.textContent = emptyMessage || PLACEHOLDER_TEXT;
       message.style.cssText = 'font-size: 15px; opacity: 0.8; margin: 0;';
       container.appendChild(message);
       return container;
@@ -256,8 +292,8 @@
       const listItem = document.createElement('li');
       listItem.style.cssText = 'margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);';
       const link = document.createElement('a');
-      link.href = title.href;
-      link.textContent = title.text;
+      link.href = title.url;
+      link.textContent = title.title;
       link.style.cssText = 'color: #fff; text-decoration: none; font-size: 14px; display: block;';
       link.addEventListener('mouseenter', () => {
         link.style.textDecoration = 'underline';
@@ -272,6 +308,80 @@
     return container;
   };
 
+  const createGroupedPanel = (groups, options = {}) => {
+    const { headerText = '', descriptionText = '', emptyMessage = PLACEHOLDER_TEXT } = options || {};
+    const container = document.createElement('div');
+    container.id = TITLE_LIST_ID;
+    container.style.cssText =
+      'padding: 20px; max-width: 1400px; margin: 0 auto; color: #fff; font-family: Roboto, Arial, sans-serif; position: relative; z-index: 9999; background-color: #0f0f0f; min-height: 200px;';
+    if (headerText) {
+      const heading = document.createElement('h2');
+      heading.textContent = headerText;
+      heading.style.cssText = 'margin: 0 0 12px; font-size: 20px; font-weight: 500;';
+      container.appendChild(heading);
+    }
+    if (descriptionText) {
+      const description = document.createElement('p');
+      description.textContent = descriptionText;
+      description.style.cssText = 'margin: 0 0 16px; font-size: 14px; opacity: 0.8;';
+      container.appendChild(description);
+    }
+    if (!Array.isArray(groups) || groups.length === 0) {
+      const message = document.createElement('p');
+      message.textContent = emptyMessage || PLACEHOLDER_TEXT;
+      message.style.cssText = 'font-size: 15px; opacity: 0.8; margin: 0;';
+      container.appendChild(message);
+      return container;
+    }
+
+    const columnsWrapper = document.createElement('div');
+    columnsWrapper.style.cssText =
+      'display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; width: 100%;';
+
+    groups.forEach((group, groupIndex) => {
+      const section = document.createElement('section');
+      section.style.cssText =
+        'background-color: #181818; border-radius: 10px; padding: 14px; flex: 1 1 260px; max-width: 320px; min-width: 240px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); display: flex; flex-direction: column; max-height: 480px;';
+      const sectionHeading = document.createElement('h3');
+      sectionHeading.textContent = group.category || `Group ${groupIndex + 1}`;
+      sectionHeading.style.cssText = 'margin: 0 0 10px; font-size: 16px; font-weight: 500;';
+      section.appendChild(sectionHeading);
+
+      const list = document.createElement('ul');
+      list.style.cssText =
+        'list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1 1 auto; scrollbar-width: thin;';
+
+      (group.videos || []).forEach((video) => {
+        const listItem = document.createElement('li');
+        listItem.style.cssText =
+          'margin-bottom: 10px; padding: 8px; border-radius: 6px; background-color: rgba(255,255,255,0.05);';
+        const link = document.createElement('a');
+        link.href = video.url;
+        link.textContent = video.title;
+        link.style.cssText = 'color: #fff; text-decoration: none; font-size: 14px; display: block;';
+        link.addEventListener('mouseenter', () => {
+          link.style.textDecoration = 'underline';
+        });
+        link.addEventListener('mouseleave', () => {
+          link.style.textDecoration = 'none';
+        });
+        if (video.channel) {
+          const channel = document.createElement('span');
+          channel.textContent = video.channel;
+          channel.style.cssText = 'display: block; font-size: 12px; opacity: 0.75; margin-top: 4px;';
+          link.appendChild(channel);
+        }
+        listItem.appendChild(link);
+        list.appendChild(listItem);
+      });
+      section.appendChild(list);
+      columnsWrapper.appendChild(section);
+    });
+
+    container.appendChild(columnsWrapper);
+    return container;
+  };
+
   const removeTitleList = () => {
     const existing = document.getElementById(TITLE_LIST_ID);
     if (existing) {
@@ -280,9 +390,9 @@
     titleListContainer = null;
   };
 
-  const insertTitleList = (titles, feedContainer) => {
+  const insertTitleList = (titles, feedContainer, options = {}) => {
     removeTitleList();
-    const titleList = createTitlePanel(titles);
+    const titleList = createTitlePanel(titles, options);
     if (feedContainer && feedContainer.parentNode) {
       feedContainer.parentNode.insertBefore(titleList, feedContainer);
     } else {
@@ -298,6 +408,307 @@
       }
     }
     titleListContainer = titleList;
+  };
+
+  const insertGroupedList = (groups, feedContainer, options = {}) => {
+    removeTitleList();
+    const groupedPanel = createGroupedPanel(groups, options);
+    if (feedContainer && feedContainer.parentNode) {
+      feedContainer.parentNode.insertBefore(groupedPanel, feedContainer);
+    } else {
+      const primaryContainer = document.querySelector('#primary');
+      if (primaryContainer) {
+        const contents = primaryContainer.querySelector('#contents') || primaryContainer;
+        contents.appendChild(groupedPanel);
+      } else {
+        const browseContainer = document.querySelector('ytd-browse[page-subtype="home"]');
+        if (browseContainer) {
+          browseContainer.appendChild(groupedPanel);
+        }
+      }
+    }
+    titleListContainer = groupedPanel;
+  };
+
+  const showLoadingPanel = (feedContainer) => {
+    insertTitleList(
+      [],
+      feedContainer,
+      {
+        headerText: CUSTOM_FEED_TITLE,
+        descriptionText: LOADING_DESCRIPTION,
+        emptyMessage: LOADING_MESSAGE
+      }
+    );
+  };
+
+  const sendMessageToBackground = (payload) => {
+    return new Promise((resolve, reject) => {
+      if (!chrome?.runtime?.id) {
+        reject(new Error('Extension runtime is unavailable.'));
+        return;
+      }
+      chrome.runtime.sendMessage(
+        {
+          type: RERANK_MESSAGE_TYPE,
+          payload
+        },
+        (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            reject(new Error(runtimeError.message));
+            return;
+          }
+          if (!response || response.ok !== true) {
+            reject(new Error(response?.error || 'Background request failed.'));
+            return;
+          }
+          resolve(response.data);
+        }
+      );
+    });
+  };
+
+  const normalizeVideoEntry = (video, fallbackPosition = 0) => {
+    if (!video || typeof video !== 'object') {
+      return null;
+    }
+    const title = typeof video.title === 'string' ? video.title.trim() : '';
+    const url = typeof video.url === 'string' ? video.url.trim() : '';
+    if (!title || !url) {
+      return null;
+    }
+    return {
+      title,
+      url,
+      channel: typeof video.channel === 'string' ? video.channel.trim() : '',
+      position:
+        typeof video.position === 'number' && Number.isFinite(video.position)
+          ? video.position
+          : fallbackPosition
+    };
+  };
+
+  const sanitizeGroupedResponse = (groupCandidates, allowedVideos) => {
+    if (!Array.isArray(groupCandidates) || !Array.isArray(allowedVideos)) {
+      return [];
+    }
+    const allowedByUrl = new Map();
+    allowedVideos.forEach((video) => {
+      if (video && typeof video.url === 'string') {
+        allowedByUrl.set(video.url, video);
+      }
+    });
+    const assigned = new Set();
+    const sanitized = [];
+    groupCandidates.forEach((group) => {
+      if (!group || typeof group !== 'object') {
+        return;
+      }
+      const category = typeof group.category === 'string' ? group.category.trim() : '';
+      if (!category) {
+        return;
+      }
+      const videos = [];
+      (Array.isArray(group.videos) ? group.videos : []).forEach((item) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        const url = typeof item.url === 'string' ? item.url.trim() : '';
+        if (!url || assigned.has(url) || !allowedByUrl.has(url)) {
+          return;
+        }
+        const base = allowedByUrl.get(url);
+        videos.push({
+          title:
+            (typeof item.title === 'string' && item.title.trim()) ||
+            base.title ||
+            item.title ||
+            '',
+          url: base.url,
+          channel: base.channel || '',
+          position: base.position
+        });
+        assigned.add(url);
+      });
+      if (videos.length > 0) {
+        sanitized.push({
+          category: category.slice(0, 80),
+          videos
+        });
+      }
+    });
+    const remaining = allowedVideos.filter((video) => video && !assigned.has(video.url));
+    if (remaining.length > 0) {
+      sanitized.push({
+        category: 'Other picks',
+        videos: remaining
+      });
+    }
+    return sanitized;
+  };
+
+  const cloneGroups = (groups) => {
+    if (!Array.isArray(groups)) {
+      return [];
+    }
+    return groups.map((group) => ({
+      category: group.category,
+      videos: group.videos.map((video) => ({ ...video }))
+    }));
+  };
+
+  const appendRemainderGroup = (groups, remainderVideos) => {
+    const cloned = cloneGroups(groups);
+    if (Array.isArray(remainderVideos) && remainderVideos.length > 0) {
+      cloned.push({
+        category: 'More from YouTube',
+        videos: remainderVideos.map((video, index) => ({
+          title: video.title,
+          url: video.url,
+          channel: video.channel || '',
+          position:
+            typeof video.position === 'number'
+              ? video.position
+              : MAX_RERANK_ITEMS + index
+        }))
+      });
+    }
+    return cloned;
+  };
+
+  const createVideoHash = (videos) => {
+    if (!Array.isArray(videos) || videos.length === 0) {
+      return '';
+    }
+    const urls = videos.slice(0, MAX_RERANK_ITEMS).map((v) => v.url).sort().join('|');
+    return urls;
+  };
+
+  const getCachedRerank = (videoHash) => {
+    const cached = rerankCache.get(videoHash);
+    if (!cached) {
+      return null;
+    }
+    const age = Date.now() - cached.timestamp;
+    if (age > CACHE_TTL_MS) {
+      rerankCache.delete(videoHash);
+      return null;
+    }
+    return cloneGroups(cached.result);
+  };
+
+  const setCachedRerank = (videoHash, result) => {
+    rerankCache.set(videoHash, {
+      result: cloneGroups(result),
+      timestamp: Date.now()
+    });
+    if (rerankCache.size > 10) {
+      const oldestKey = rerankCache.keys().next().value;
+      rerankCache.delete(oldestKey);
+    }
+  };
+
+  const prepareVideoPayload = (videos) => {
+    if (!Array.isArray(videos)) {
+      return { truncated: [], remainder: [], videoHash: '' };
+    }
+    const truncated = videos.slice(0, MAX_RERANK_ITEMS).map((video, index) => ({
+      title: video.title,
+      url: video.url,
+      channel: video.channel || '',
+      position: index
+    }));
+    const remainder = videos.slice(MAX_RERANK_ITEMS).map((video, index) => ({
+      title: video.title,
+      url: video.url,
+      channel: video.channel || '',
+      position: MAX_RERANK_ITEMS + index
+    }));
+    const videoHash = createVideoHash(truncated);
+    return { truncated, remainder, videoHash };
+  };
+
+  const rerankVideos = async (payload) => {
+    const { truncated, remainder, videoHash } = payload;
+    if (!Array.isArray(truncated) || truncated.length === 0) {
+      return null;
+    }
+    try {
+      const response = await sendMessageToBackground({ videos: truncated });
+      if (!response || !Array.isArray(response.groups)) {
+        return null;
+      }
+      const curated = sanitizeGroupedResponse(response.groups, truncated);
+      setCachedRerank(videoHash, curated);
+      return appendRemainderGroup(curated, remainder);
+    } catch (error) {
+      console.error('[feed-blocker] Custom feed request failed:', error);
+      return null;
+    }
+  };
+
+  const updateFeedWithCustomList = (videos, feedContainer) => {
+    if (!Array.isArray(videos) || videos.length === 0) {
+      insertTitleList([], feedContainer);
+      return;
+    }
+    const payload = prepareVideoPayload(videos);
+    if (payload.truncated.length === 0) {
+      insertTitleList(videos, feedContainer);
+      return;
+    }
+    const currentHash = payload.videoHash || createVideoHash(videos);
+    if (currentHash === lastVideoHash) {
+      return;
+    }
+    lastVideoHash = currentHash;
+    if (rerankDebounceTimer !== null) {
+      clearTimeout(rerankDebounceTimer);
+    }
+    rerankDebounceTimer = window.setTimeout(() => {
+      rerankDebounceTimer = null;
+      latestRerankRequestId += 1;
+      const requestId = latestRerankRequestId;
+      const cached = getCachedRerank(payload.videoHash);
+      if (cached) {
+        const grouped = appendRemainderGroup(cached, payload.remainder);
+        insertGroupedList(grouped, feedContainer, {
+          headerText: CUSTOM_FEED_TITLE,
+          descriptionText: CUSTOM_FEED_DESCRIPTION
+        });
+        return;
+      }
+      showLoadingPanel(feedContainer);
+      rerankVideos(payload)
+        .then((groupedResult) => {
+          if (requestId !== latestRerankRequestId) {
+            return;
+          }
+          const hasCustom = Array.isArray(groupedResult) && groupedResult.length > 0;
+          if (hasCustom) {
+            insertGroupedList(groupedResult, feedContainer, {
+              headerText: CUSTOM_FEED_TITLE,
+              descriptionText: CUSTOM_FEED_DESCRIPTION
+            });
+            return;
+          }
+          insertTitleList(videos, feedContainer, {
+            headerText: 'Original order (fallback)',
+            descriptionText: FALLBACK_DESCRIPTION
+          });
+        })
+        .catch((error) => {
+          if (requestId !== latestRerankRequestId) {
+            return;
+          }
+          console.error('[feed-blocker] Unable to render custom feed:', error);
+          insertTitleList(videos, feedContainer, {
+            headerText: 'Original order (fallback)',
+            descriptionText: FALLBACK_DESCRIPTION
+          });
+        });
+    }, RERANK_DEBOUNCE_MS);
   };
 
   const hideElement = (element) => {
@@ -325,6 +736,12 @@
       restoreElement(element);
     });
     removeTitleList();
+    latestRerankRequestId += 1;
+    lastVideoHash = null;
+    if (rerankDebounceTimer !== null) {
+      clearTimeout(rerankDebounceTimer);
+      rerankDebounceTimer = null;
+    }
   };
 
   const hideHomeFeed = () => {
@@ -352,7 +769,7 @@
     });
 
     const titles = extractVideoTitles();
-    insertTitleList(titles, feedElements[0]);
+    updateFeedWithCustomList(titles, feedElements[0]);
     if (titles.length === 0) {
       scheduleCheck();
     }

@@ -1,0 +1,15 @@
+{
+  "videos": [
+    {"title": "React Hooks Crash Course", "url": "https://www.youtube.com/watch?v=react1", "channel": "JS Mastery"},
+    {"title": "Rust for Beginners", "url": "https://www.youtube.com/watch?v=rust1", "channel": "Systems School"},
+    {"title": "History of Space Telescopes", "url": "https://www.youtube.com/watch?v=spacehist", "channel": "AstroFacts"},
+    {"title": "Quantum Computing 101", "url": "https://www.youtube.com/watch?v=quant1", "channel": "Qubit Lab"},
+    {"title": "Learn Blender in 20 Minutes", "url": "https://www.youtube.com/watch?v=blend1", "channel": "CG Geek"},
+    {"title": "Morning Focus Routine", "url": "https://www.youtube.com/watch?v=focus1", "channel": "Productive Amy"},
+    {"title": "AI Safety Debate", "url": "https://www.youtube.com/watch?v=aisafe", "channel": "Tech Ethics"},
+    {"title": "Blockchain Explained", "url": "https://www.youtube.com/watch?v=block", "channel": "Crypto Class"},
+    {"title": "Career Advice for Engineers", "url": "https://www.youtube.com/watch?v=career", "channel": "Dev Mentor"},
+    {"title": "SpaceX Starship Update", "url": "https://www.youtube.com/watch?v=spx2", "channel": "Space Nerd"},
+    {"title": "Healthy Meal Prep", "url": "https://www.youtube.com/watch?v=meal", "channel": "Kitchen Science"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "videos": [
+    {"title": "Deep Learning Tutorial", "url": "https://www.youtube.com/watch?v=dl1", "channel": "AI Lab"},
+    {"title": "SpaceX Starship Update", "url": "https://www.youtube.com/watch?v=spx", "channel": "Space Nerd"},
+    {"title": "Productivity Tips", "url": "https://www.youtube.com/watch?v=prod", "channel": "Focus Coach"},
+    {"title": "Python Asyncio Guide", "url": "https://www.youtube.com/watch?v=pyasync", "channel": "Code School"},
+    {"title": "Meditation for Stress", "url": "https://www.youtube.com/watch?v=med1", "channel": "Calm Living"}
+  ]
+}

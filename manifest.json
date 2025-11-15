@@ -3,11 +3,16 @@
   "name": "Feed Blocker - YouTube Home",
   "description": "Removes the YouTube home page recommendation feed.",
   "version": "0.1.0",
+  "background": {
+    "service_worker": "background.js"
+  },
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://www.linkedin.com/*",
     "https://x.com/*",
-    "https://twitter.com/*"
+    "https://twitter.com/*",
+    "http://127.0.0.1:11400/*",
+    "http://localhost:11400/*"
   ],
   "content_scripts": [
     {
