@@ -34,9 +34,21 @@
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const SHOW_THUMBNAILS_KEY = 'feed-blocker-show-thumbnails';
   let showThumbnails = JSON.parse(localStorage.getItem(SHOW_THUMBNAILS_KEY) || 'false');
+  const SHORTS_PATH_PREFIX = '/shorts';
+  const SHORTS_OVERLAY_ID = 'feed-blocker-shorts-overlay';
+  const SHORTS_OVERLAY_TITLE = 'Shorts blocked';
+  const SHORTS_OVERLAY_DESCRIPTION =
+    'Short-form distractions are hidden. Use Search or Subscriptions for long-form learning.';
+  const SHORTS_PAGE_SELECTORS = ['ytd-shorts', '#shorts-player', '#shorts-container', 'ytd-reel-video-renderer'];
+  const shortsHiddenElements = new Set();
+  const shortsPreviousDisplay = new WeakMap();
 
   const isHomePage = () => {
     return window.location.hostname === HOME_HOSTNAME && window.location.pathname === HOME_PATHNAME;
+  };
+
+  const isShortsPage = () => {
+    return window.location.hostname === HOME_HOSTNAME && window.location.pathname.startsWith(SHORTS_PATH_PREFIX);
   };
 
   const collectFeedElements = () => {
@@ -59,6 +71,108 @@
       });
     });
     return elements;
+  };
+
+  const cleanupShortsHiddenElements = () => {
+    Array.from(shortsHiddenElements).forEach((element) => {
+      if (!element || !element.isConnected) {
+        shortsHiddenElements.delete(element);
+        shortsPreviousDisplay.delete(element);
+      }
+    });
+  };
+
+  const hideShortsElement = (element) => {
+    if (!element || shortsHiddenElements.has(element)) {
+      return;
+    }
+    const currentDisplay = element.style.getPropertyValue('display');
+    shortsPreviousDisplay.set(element, currentDisplay);
+    element.style.setProperty('display', 'none', 'important');
+    element.setAttribute('data-feed-blocker-shorts-hidden', 'true');
+    shortsHiddenElements.add(element);
+  };
+
+  const ensureShortsOverlay = () => {
+    let overlay = document.getElementById(SHORTS_OVERLAY_ID);
+    if (overlay) {
+      return overlay;
+    }
+    if (!document.body) {
+      return null;
+    }
+    overlay = document.createElement('div');
+    overlay.id = SHORTS_OVERLAY_ID;
+    overlay.style.cssText =
+      'position: fixed; inset: 0; background-color: #0f0f0f; color: #fff; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 32px;';
+    const heading = document.createElement('h2');
+    heading.textContent = SHORTS_OVERLAY_TITLE;
+    heading.style.cssText = 'margin: 0; font-size: 28px; font-weight: 500;';
+    const description = document.createElement('p');
+    description.textContent = SHORTS_OVERLAY_DESCRIPTION;
+    description.style.cssText = 'margin: 0; font-size: 16px; opacity: 0.85; max-width: 520px;';
+    overlay.appendChild(heading);
+    overlay.appendChild(description);
+    document.body.appendChild(overlay);
+    return overlay;
+  };
+
+  const removeShortsOverlay = () => {
+    const overlay = document.getElementById(SHORTS_OVERLAY_ID);
+    if (overlay) {
+      overlay.remove();
+    }
+  };
+
+  const collectShortsModules = () => {
+    const modules = new Set();
+    document.querySelectorAll('ytd-rich-section-renderer').forEach((section) => {
+      if (section.querySelector('ytd-reel-shelf-renderer, ytd-reel-video-renderer, ytd-reel-item-renderer')) {
+        modules.add(section);
+      }
+    });
+    document
+      .querySelectorAll('ytd-reel-shelf-renderer, ytd-reel-video-renderer, ytd-reel-item-renderer')
+      .forEach((element) => {
+        modules.add(element);
+      });
+    document
+      .querySelectorAll('a[href^="/shorts"], a[href^="https://www.youtube.com/shorts"], a[href^="//www.youtube.com/shorts"]')
+      .forEach((link) => {
+        const renderer = link.closest(
+          'ytd-rich-item-renderer,ytd-grid-video-renderer,ytd-compact-video-renderer,ytd-video-renderer'
+        );
+        if (renderer) {
+          modules.add(renderer);
+        }
+      });
+    return Array.from(modules);
+  };
+
+  const blockInlineShorts = () => {
+    const modules = collectShortsModules();
+    modules.forEach((element) => {
+      hideShortsElement(element);
+    });
+  };
+
+  const blockShortsPage = () => {
+    if (!isShortsPage()) {
+      removeShortsOverlay();
+      return;
+    }
+    SHORTS_PAGE_SELECTORS.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((element) => {
+        hideShortsElement(element);
+      });
+    });
+    ensureShortsOverlay();
+  };
+
+  const blockShortsContent = () => {
+    cleanupShortsHiddenElements();
+    blockInlineShorts();
+    blockShortsPage();
   };
 
   const toAbsoluteUrl = (href) => {
@@ -858,13 +972,18 @@
     }
   };
 
+  const enforceBlocking = () => {
+    blockShortsContent();
+    hideHomeFeed();
+  };
+
   const scheduleCheck = () => {
     if (scheduledCheckId !== null) {
       return;
     }
     scheduledCheckId = window.setTimeout(() => {
       scheduledCheckId = null;
-      hideHomeFeed();
+      enforceBlocking();
     }, CHECK_DELAY_MS);
   };
 
@@ -884,7 +1003,7 @@
   };
 
   const init = () => {
-    hideHomeFeed();
+    enforceBlocking();
     initObservers();
     window.addEventListener('yt-navigate-finish', scheduleCheck, { passive: true });
     window.addEventListener('popstate', scheduleCheck, { passive: true });
