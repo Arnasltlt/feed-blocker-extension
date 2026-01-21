@@ -1,6 +1,6 @@
 (() => {
   const X_HOSTNAMES = new Set(['x.com', 'twitter.com']);
-  const HOME_PATHS = new Set(['/', '/home']);
+  const HOME_PATHS = new Set(['/', '/home', '/explore']);
   const FEED_SELECTORS = [
     'div[data-testid="primaryColumn"] section',
     'div[data-testid="primaryColumn"] div[aria-label="Timeline: Your Home Timeline"]',

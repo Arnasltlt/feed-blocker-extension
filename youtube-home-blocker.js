@@ -828,6 +828,27 @@
     if (!Array.isArray(truncated) || truncated.length === 0) {
       return null;
     }
+    
+    // Attempt Local AI first
+    if (window.LocalAIService) {
+      const available = await window.LocalAIService.isAvailable();
+      if (available) {
+        console.info('[feed-blocker] Using Local AI for reranking');
+        const localGroups = await window.LocalAIService.rerank(truncated);
+        if (localGroups) {
+          // Mark title for UI
+          const customTitle = 'Custom feed (Local AI)';
+          setCachedRerank(videoHash, localGroups);
+          // Modify groups to include specific UI marker if needed, 
+          // but simpler to just pass a flag or check upstream.
+          // For now we return groups, the UI title will be updated via description or headerText in caller if we change logic there.
+          // Or we can just set a global "usingLocalAI" flag.
+          return { groups: appendRemainderGroup(localGroups, remainder), isLocal: true };
+        }
+        console.warn('[feed-blocker] Local AI returned null, falling back to server');
+      }
+    }
+
     try {
       const response = await sendMessageToBackground({ videos: truncated });
       if (!response || !Array.isArray(response.groups)) {
@@ -835,7 +856,7 @@
       }
       const curated = sanitizeGroupedResponse(response.groups, truncated);
       setCachedRerank(videoHash, curated);
-      return appendRemainderGroup(curated, remainder);
+      return { groups: appendRemainderGroup(curated, remainder), isLocal: false };
     } catch (error) {
       console.error('[feed-blocker] Custom feed request failed:', error);
       return null;
@@ -866,6 +887,8 @@
       const requestId = latestRerankRequestId;
       const cached = getCachedRerank(payload.videoHash);
       if (cached) {
+        // Cache stores just groups array, not wrapper with isLocal
+        // We assume cached entries were processed successfully
         const grouped = appendRemainderGroup(cached, payload.remainder);
         insertGroupedList(grouped, feedContainer, {
           headerText: CUSTOM_FEED_TITLE,
@@ -875,16 +898,20 @@
       }
       showLoadingPanel(feedContainer);
       rerankVideos(payload)
-        .then((groupedResult) => {
+        .then((result) => {
           if (requestId !== latestRerankRequestId) {
             return;
           }
+          // Result is now { groups: ..., isLocal: boolean } or null
+          const groupedResult = result ? result.groups : null;
+          const isLocal = result ? result.isLocal : false;
+
           const hasCustom = Array.isArray(groupedResult) && groupedResult.length > 0;
           if (hasCustom) {
-        lastRenderedGroups = groupedResult ? cloneGroups(groupedResult) : null;
-        insertGroupedList(groupedResult, feedContainer, {
-              headerText: CUSTOM_FEED_TITLE,
-              descriptionText: CUSTOM_FEED_DESCRIPTION
+            lastRenderedGroups = groupedResult ? cloneGroups(groupedResult) : null;
+            insertGroupedList(groupedResult, feedContainer, {
+              headerText: isLocal ? 'Custom feed (Local AI)' : CUSTOM_FEED_TITLE,
+              descriptionText: isLocal ? 'Videos reordered locally by Chrome Gemini Nano.' : CUSTOM_FEED_DESCRIPTION
             });
             return;
           }
