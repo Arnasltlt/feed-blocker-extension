@@ -19,7 +19,7 @@
       "matches": [
         "https://www.youtube.com/*"
       ],
-      "js": ["youtube-home-blocker.js"],
+      "js": ["local-ai.js", "youtube-home-blocker.js"],
       "run_at": "document_idle"
     },
     {
