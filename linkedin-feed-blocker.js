@@ -1,6 +1,7 @@
 (() => {
   const LINKEDIN_HOSTNAME = 'www.linkedin.com';
   const FEED_PATH_PREFIX = '/feed';
+  const NOTIFICATIONS_PATH_PREFIX = '/notifications';
   const FEED_SELECTORS = [
     'div.feed-outlet',
     'main.scaffold-layout__main',
@@ -13,28 +14,73 @@
     'section.feed-container',
     'main > div > div.scaffold-layout__list-container'
   ];
-  const NOTIFICATION_SELECTORS = [
-    'a[data-test-global-nav-link="notifications"]',
-    'button[data-test-global-nav-link="notifications"]',
-    '#notifications-tab-icon',
-    'a[href*="/notifications/"]',
-    'button[aria-label*="Notification"]',
-    'a[aria-label*="Notifications"]'
-  ];
-  const NOTIFICATION_STYLE_ID = 'feed-blocker-linkedin-notifications';
-  const NOTIFICATION_STYLE = `
-    li.global-nav__primary-item:has(a[data-test-global-nav-link="notifications"]),
-    li.global-nav__primary-item:has(button[data-test-global-nav-link="notifications"]),
-    div.global-nav__primary-item:has(a[data-test-global-nav-link="notifications"]),
-    div.global-nav__primary-item:has(button[data-test-global-nav-link="notifications"]),
-    a[data-test-global-nav-link="notifications"],
-    button[data-test-global-nav-link="notifications"],
-    #notifications-tab-icon,
-    a[href*="/notifications/"],
-    button[aria-label*="Notification"],
-    a[aria-label*="Notifications"] {
+  const NOTIFICATIONS_TEXT_ONLY_STYLE_ID = 'feed-blocker-linkedin-notifications-text-only';
+  const NOTIFICATIONS_TEXT_ONLY_STYLE = `
+    body {
+      background: #ffffff !important;
+      color: #202124 !important;
+    }
+    img,
+    svg,
+    video,
+    canvas,
+    picture,
+    [class*="avatar"],
+    [class*="Avatar"],
+    [class*="photo"],
+    [class*="Photo"],
+    [class*="image"],
+    [class*="Image"],
+    [class*="logo"],
+    [class*="Logo"],
+    [class*="presence"],
+    [class*="Presence"],
+    [class*="status-indicator"],
+    [class*="StatusIndicator"],
+    [class*="badge"],
+    [class*="Badge"] {
       display: none !important;
       visibility: hidden !important;
+    }
+    [class*="artdeco-card"],
+    [class*="card"],
+    [class*="Card"],
+    [class*="nt-card"],
+    [class*="notification"],
+    [class*="Notification"],
+    [class*="pill"],
+    [class*="Pill"],
+    [class*="chip"],
+    [class*="Chip"] {
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+    [class*="selected"],
+    [class*="active"],
+    [class*="Active"],
+    [class*="selectedTab"],
+    [class*="SelectedTab"] {
+      background: transparent !important;
+      color: #202124 !important;
+    }
+    a,
+    a:visited,
+    button,
+    [role="button"] {
+      color: #202124 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-color: #c0c0c0 !important;
+      text-decoration: none !important;
+    }
+    main a,
+    main a:visited {
+      pointer-events: none !important;
+      cursor: default !important;
+    }
+    * {
+      text-decoration: none !important;
     }
   `;
   
@@ -71,6 +117,13 @@
       return false;
     }
     return window.location.pathname === '/' || window.location.pathname.startsWith(FEED_PATH_PREFIX);
+  };
+
+  const isNotificationsPage = () => {
+    if (window.location.hostname !== LINKEDIN_HOSTNAME) {
+      return false;
+    }
+    return window.location.pathname.startsWith(NOTIFICATIONS_PATH_PREFIX);
   };
 
   const hideElement = (element) => {
@@ -123,51 +176,41 @@
     return containers;
   };
 
-  const ensureNotificationStyles = () => {
-    if (document.getElementById(NOTIFICATION_STYLE_ID)) {
+  const ensureNotificationsTextOnlyStyles = () => {
+    if (document.getElementById(NOTIFICATIONS_TEXT_ONLY_STYLE_ID)) {
       return;
     }
     const style = document.createElement('style');
-    style.id = NOTIFICATION_STYLE_ID;
-    style.textContent = NOTIFICATION_STYLE;
+    style.id = NOTIFICATIONS_TEXT_ONLY_STYLE_ID;
+    style.textContent = NOTIFICATIONS_TEXT_ONLY_STYLE;
     (document.head || document.documentElement).appendChild(style);
   };
 
-  const hideNotifications = () => {
-    ensureNotificationStyles();
-    NOTIFICATION_SELECTORS.forEach((selector) => {
-      const matches = document.querySelectorAll(selector);
-      matches.forEach((element) => {
-        if (!(element instanceof HTMLElement)) {
-          return;
-        }
-        const navItem =
-          element.closest('li.global-nav__primary-item') ||
-          element.closest('div.global-nav__primary-item') ||
-          element.closest('li') ||
-          element;
-        if (navItem instanceof HTMLElement) {
-          navItem.style.setProperty('display', 'none', 'important');
-        }
-      });
-    });
+  const removeNotificationsTextOnlyStyles = () => {
+    const style = document.getElementById(NOTIFICATIONS_TEXT_ONLY_STYLE_ID);
+    if (style) {
+      style.remove();
+    }
   };
 
   const hideFeed = () => {
+    if (isNotificationsPage()) {
+      revealFeed();
+      ensureNotificationsTextOnlyStyles();
+      return;
+    }
+    removeNotificationsTextOnlyStyles();
     if (!isFeedPage()) {
       revealFeed();
-      hideNotifications();
       return;
     }
     const containers = collectFeedContainers();
     if (containers.length === 0) {
-      hideNotifications();
       return;
     }
     containers.forEach((container) => {
       hideElement(container);
     });
-    hideNotifications();
   };
 
   const scheduleCheck = () => {
