@@ -14,11 +14,11 @@
   const CHECK_DELAY_MS = 120;
   const RERANK_MESSAGE_TYPE = 'RERANK_VIDEOS';
   const MAX_RERANK_ITEMS = 30;
-  const CUSTOM_FEED_TITLE = 'Custom feed (Groq)';
+  const CUSTOM_FEED_TITLE = 'Custom feed (AI)';
   const CUSTOM_FEED_DESCRIPTION = 'Videos reordered for deep, learning-focused sessions.';
-  const LOADING_DESCRIPTION = 'Re-ranking your recommendations with Groq. This may take a moment.';
-  const LOADING_MESSAGE = 'Generating custom feed via Groq...';
-  const FALLBACK_DESCRIPTION = 'Could not reach the local Groq server. Showing the original YouTube order.';
+  const LOADING_DESCRIPTION = 'Re-ranking your recommendations with AI. This may take a moment.';
+  const LOADING_MESSAGE = 'Generating custom feed with AI...';
+  const FALLBACK_DESCRIPTION = 'Could not reach any AI service. Showing the original YouTube order.';
 
   const hiddenElements = new Set();
   const previousDisplay = new WeakMap();
@@ -856,7 +856,11 @@
       }
       const curated = sanitizeGroupedResponse(response.groups, truncated);
       setCachedRerank(videoHash, curated);
-      return { groups: appendRemainderGroup(curated, remainder), isLocal: false };
+      return { 
+        groups: appendRemainderGroup(curated, remainder), 
+        isLocal: false,
+        source: response.source || 'groq-unknown'
+      };
     } catch (error) {
       console.error('[feed-blocker] Custom feed request failed:', error);
       return null;
@@ -902,16 +906,33 @@
           if (requestId !== latestRerankRequestId) {
             return;
           }
-          // Result is now { groups: ..., isLocal: boolean } or null
+          // Result is now { groups: ..., isLocal: boolean, source: string } or null
           const groupedResult = result ? result.groups : null;
           const isLocal = result ? result.isLocal : false;
+          const source = result ? result.source : null;
 
           const hasCustom = Array.isArray(groupedResult) && groupedResult.length > 0;
           if (hasCustom) {
             lastRenderedGroups = groupedResult ? cloneGroups(groupedResult) : null;
+            
+            // Determine title and description based on source
+            let headerText = CUSTOM_FEED_TITLE;
+            let descriptionText = CUSTOM_FEED_DESCRIPTION;
+            
+            if (isLocal) {
+              headerText = 'Custom feed (Chrome Gemini Nano)';
+              descriptionText = 'Videos reordered locally using Chrome\'s built-in AI model.';
+            } else if (source === 'groq-fly') {
+              headerText = 'Custom feed (Groq)';
+              descriptionText = 'Videos reordered using Groq AI from your deployed server.';
+            } else if (source === 'groq-local') {
+              headerText = 'Custom feed (Groq localhost)';
+              descriptionText = 'Videos reordered using Groq AI from your local server.';
+            }
+            
             insertGroupedList(groupedResult, feedContainer, {
-              headerText: isLocal ? 'Custom feed (Local AI)' : CUSTOM_FEED_TITLE,
-              descriptionText: isLocal ? 'Videos reordered locally by Chrome Gemini Nano.' : CUSTOM_FEED_DESCRIPTION
+              headerText,
+              descriptionText
             });
             return;
           }

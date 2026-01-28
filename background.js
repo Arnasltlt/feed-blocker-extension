@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 const RERANK_MESSAGE_TYPE = 'RERANK_VIDEOS';
 const RERANK_ENDPOINTS = [
+  'https://feed-blocking-extenstion.fly.dev/rerank',
   'http://127.0.0.1:11400/rerank',
   'http://localhost:11400/rerank'
 ];
@@ -19,7 +20,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function handleRerankRequest(payload) {
   if (!payload || !Array.isArray(payload.videos) || payload.videos.length === 0) {
-    return { videos: [] };
+    return { videos: [], source: 'none' };
   }
 
   const body = JSON.stringify(payload);
@@ -39,13 +40,23 @@ async function handleRerankRequest(payload) {
         throw new Error(`HTTP ${response.status} when calling ${endpoint}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Determine source based on endpoint
+      let source = 'groq-local';
+      if (endpoint.includes('fly.dev')) {
+        source = 'groq-fly';
+      } else if (endpoint.includes('127.0.0.1') || endpoint.includes('localhost')) {
+        source = 'groq-local';
+      }
+      
+      return { ...data, source };
     } catch (error) {
       lastError = error;
       console.warn('[feed-blocker] Failed to reach custom feed server:', endpoint, error);
     }
   }
 
-  throw lastError || new Error('Unable to reach local Groq server at http://127.0.0.1:11400/rerank');
+  throw lastError || new Error('Unable to reach any Groq server');
 }
 

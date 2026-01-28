@@ -31,6 +31,21 @@ A browser extension that blocks distracting feeds on YouTube, LinkedIn, and X (T
 
 If the server is unreachable or the key is missing, the extension automatically falls back to the original (blocked) title list.
 
+## Chrome Built-in AI (Gemini Nano) Custom Feed (YouTube)
+
+If Chrome's built-in Prompt API is available, the extension will rerank locally first and fall back to the Groq server.
+
+1. Enable Chrome flags:
+   - `chrome://flags/#optimization-guide-on-device-model`
+   - `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input`
+2. Restart Chrome.
+3. Ensure hardware requirements:
+   - 22GB+ free disk space
+   - 16GB+ RAM (CPU) or 4GB+ VRAM (GPU)
+   - Desktop Chrome on Windows 10/11, macOS 13+, Linux, or Chromebook Plus
+
+The model downloads automatically the first time it is used.
+
 ## How It Works
 
 The extension uses content scripts to detect and hide feed elements on each platform. There is **no easy bypass** - the only way to disable blocking is to turn off the extension in `chrome://extensions`.

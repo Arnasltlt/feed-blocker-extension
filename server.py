@@ -256,6 +256,11 @@ def rerank_with_groq(videos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [{"category": "All videos", "videos": videos}]
 
 
+@app.route("/", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/rerank", methods=["POST"])
 def rerank_endpoint():
     payload = request.get_json(silent=True) or {}

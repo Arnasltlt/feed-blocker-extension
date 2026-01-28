@@ -1,0 +1,32 @@
+# Extension files
+*.js
+manifest.json
+
+# Documentation
+README.md
+*.md
+
+# Git
+.git
+.gitignore
+
+# Sample data
+sample_payload*.json
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDE
+.vscode
+.cursor
+.idea

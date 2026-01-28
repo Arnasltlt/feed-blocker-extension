@@ -13,11 +13,12 @@ class LocalAIService {
    * @returns {Promise<boolean>}
    */
   async isAvailable() {
-    if (!window.ai || !window.ai.languageModel) {
+    const api = window.LanguageModel || window.ai?.languageModel;
+    if (!api) {
       return false;
     }
     try {
-      const availability = await window.ai.languageModel.availability();
+      const availability = await api.availability();
       return availability === 'readily';
     } catch (error) {
       console.warn('[LocalAI] Availability check failed:', error);
@@ -117,7 +118,11 @@ class LocalAIService {
         this.session = null;
       }
 
-      this.session = await window.ai.languageModel.create({
+      const api = window.LanguageModel || window.ai?.languageModel;
+      if (!api) {
+        throw new Error('Chrome Prompt API is unavailable.');
+      }
+      this.session = await api.create({
         systemPrompt: systemPrompt
       });
 

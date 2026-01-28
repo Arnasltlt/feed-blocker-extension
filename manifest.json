@@ -11,6 +11,7 @@
     "https://www.linkedin.com/*",
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://feed-blocking-extenstion.fly.dev/*",
     "http://127.0.0.1:11400/*",
     "http://localhost:11400/*"
   ],
