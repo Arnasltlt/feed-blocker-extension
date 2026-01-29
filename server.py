@@ -24,9 +24,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("custom_feed")
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct-0905")
 MAX_VIDEOS = max(1, int(os.environ.get("CUSTOM_FEED_MAX_VIDEOS", "30")))
-SERVER_PORT = int(os.environ.get("CUSTOM_FEED_SERVER_PORT", "11400"))
+SERVER_PORT = int(os.environ.get("PORT") or os.environ.get("CUSTOM_FEED_SERVER_PORT", "11400"))
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 GROUP_RESPONSE_SCHEMA = {
@@ -291,6 +291,6 @@ def rerank_endpoint():
 
 
 if __name__ == "__main__":
-    logger.info("Starting custom feed server on http://127.0.0.1:%s", SERVER_PORT)
-    app.run(host="127.0.0.1", port=SERVER_PORT, debug=False)
+    logger.info("Starting custom feed server on port %s", SERVER_PORT)
+    app.run(host="0.0.0.0", port=SERVER_PORT, debug=False)
 

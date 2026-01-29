@@ -25,11 +25,21 @@ A browser extension that blocks distracting feeds on YouTube, LinkedIn, and X (T
 
 1. Install dependencies: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
 2. Export your Groq API key: `export GROQ_API_KEY=your_key_here`
-3. (Optional) Override defaults: `GROQ_MODEL` (default `openai/gpt-oss-20b` for the fastest Structured Output support), `CUSTOM_FEED_MAX_VIDEOS` (default `30`), `CUSTOM_FEED_SERVER_PORT` (default `11400`). The server enables Groq’s **Structured Outputs**, so stick to models that support JSON schema decoding (the default does).
+3. (Optional) Override defaults: `GROQ_MODEL` (default `moonshotai/kimi-k2-instruct-0905`; set to `openai/gpt-oss-20b` to switch back), `CUSTOM_FEED_MAX_VIDEOS` (default `30`), `CUSTOM_FEED_SERVER_PORT` (default `11400`). The server enables Groq’s **Structured Outputs**, so stick to models that support JSON schema decoding.
 4. Start the server: `python server.py`
 5. Keep the server running while you browse YouTube. The content script will call `http://127.0.0.1:11400/rerank` via the extension’s background service worker and render the grouped, reordered list.
 
 If the server is unreachable or the key is missing, the extension automatically falls back to the original (blocked) title list.
+
+### Deploy to Fly.io
+
+The server is configured for Fly.io. From the project root:
+
+1. Install [flyctl](https://fly.io/docs/hands-on/install-flyctl/) and log in: `fly auth login`
+2. Set your Groq API key as a secret: `fly secrets set GROQ_API_KEY=your_key_here`
+3. Deploy: `fly deploy`
+
+App URL: **https://feed-blocking-server.fly.dev**. The rerank endpoint is `POST https://feed-blocking-server.fly.dev/rerank`. Point the extension at this URL (or run the server locally on port 11400).
 
 ## How It Works
 
