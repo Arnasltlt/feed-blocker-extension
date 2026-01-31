@@ -153,12 +153,85 @@
     });
   };
 
+  const extractFeedPosts = () => {
+    if (!isFeedPage()) {
+      return [];
+    }
+
+    const posts = [];
+    const seen = new Set();
+
+    // LinkedIn feed posts are typically in divs with specific classes
+    const postElements = document.querySelectorAll([
+      'div.feed-shared-update-v2',
+      'div[data-id*="urn:li:activity"]',
+      'div.update-components-actor'
+    ].join(','));
+
+    postElements.forEach((postElement, index) => {
+      try {
+        // Extract post text
+        const textElement = postElement.querySelector([
+          '.feed-shared-update-v2__description',
+          '.update-components-text',
+          '.feed-shared-text',
+          'span[dir="ltr"]'
+        ].join(','));
+        const text = textElement ? textElement.textContent.trim() : '';
+
+        // Extract author
+        const authorElement = postElement.querySelector([
+          '.update-components-actor__name',
+          '.feed-shared-actor__name',
+          'span.update-components-actor__name span[aria-hidden="true"]'
+        ].join(','));
+        const author = authorElement ? authorElement.textContent.trim() : '';
+
+        // Try to find post URL
+        const linkElement = postElement.querySelector('a[href*="/posts/"], a[href*="/feed/update/"]');
+        const url = linkElement ? linkElement.href : '';
+
+        // Use text as identifier if no URL
+        const identifier = url || text;
+
+        if (!text || !identifier || seen.has(identifier)) {
+          return;
+        }
+
+        seen.add(identifier);
+
+        posts.push({
+          title: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
+          fullText: text,
+          author,
+          url,
+          position: posts.length
+        });
+      } catch (error) {
+        console.error('[linkedin-feed-blocker] Failed to extract post:', error);
+      }
+    });
+
+    // Capture recommendations for tracking
+    if (posts.length > 0 && window.RecommendationTracker) {
+      window.RecommendationTracker.capture('linkedin', posts).catch(err => {
+        console.error('[linkedin-feed-blocker] Failed to track recommendations:', err);
+      });
+    }
+
+    return posts;
+  };
+
   const hideFeed = () => {
     if (!isFeedPage()) {
       revealFeed();
       hideNotifications();
       return;
     }
+
+    // Extract posts before hiding
+    extractFeedPosts();
+
     const containers = collectFeedContainers();
     if (containers.length === 0) {
       hideNotifications();

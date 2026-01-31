@@ -375,6 +375,14 @@
         position: titles.length
       });
     });
+
+    // Capture recommendations for tracking
+    if (titles.length > 0 && window.RecommendationTracker) {
+      window.RecommendationTracker.capture('youtube', titles).catch(err => {
+        console.error('[feed-blocker] Failed to track recommendations:', err);
+      });
+    }
+
     return titles;
   };
 

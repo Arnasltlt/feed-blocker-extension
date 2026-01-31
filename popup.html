@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Feed Tracker</title>
+  <style>
+    body {
+      width: 400px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: #1a1a1a;
+      color: #e0e0e0;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px 0;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .stats {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .stat-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stat-label {
+      color: #999;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .platform-stats {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #3a3a3a;
+    }
+
+    .platform-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .platform-name {
+      text-transform: capitalize;
+      color: #aaa;
+    }
+
+    .platform-count {
+      color: #ccc;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .primary-btn {
+      background: #4285f4;
+      color: white;
+    }
+
+    .primary-btn:hover {
+      background: #3367d6;
+    }
+
+    .secondary-btn {
+      background: #3a3a3a;
+      color: #e0e0e0;
+    }
+
+    .secondary-btn:hover {
+      background: #4a4a4a;
+    }
+
+    .danger-btn {
+      background: #d32f2f;
+      color: white;
+    }
+
+    .danger-btn:hover {
+      background: #b71c1c;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 24px;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .dates {
+      font-size: 12px;
+      color: #777;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Feed Recommendation Tracker</h1>
+
+  <div id="content">
+    <div class="loading">Loading...</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

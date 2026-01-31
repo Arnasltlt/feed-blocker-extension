@@ -52,11 +52,69 @@
     });
   };
 
+  const extractTweets = () => {
+    if (!isHomePage()) {
+      return [];
+    }
+
+    const tweets = [];
+    const seen = new Set();
+
+    // X/Twitter uses article elements for tweets
+    const articles = document.querySelectorAll('article[data-testid="tweet"]');
+
+    articles.forEach((article, index) => {
+      try {
+        // Extract tweet text
+        const tweetTextElement = article.querySelector('[data-testid="tweetText"]');
+        const text = tweetTextElement ? tweetTextElement.textContent.trim() : '';
+
+        // Extract author
+        const authorElement = article.querySelector('[data-testid="User-Name"] a[role="link"]');
+        const author = authorElement ? authorElement.textContent.trim() : '';
+
+        // Extract tweet URL
+        const timeElement = article.querySelector('time');
+        const linkElement = timeElement ? timeElement.closest('a') : null;
+        const url = linkElement ? linkElement.href : '';
+
+        if (!text || !url || seen.has(url)) {
+          return;
+        }
+
+        seen.add(url);
+
+        tweets.push({
+          title: text.substring(0, 200) + (text.length > 200 ? '...' : ''), // Truncate long tweets
+          fullText: text,
+          author,
+          url,
+          position: tweets.length
+        });
+      } catch (error) {
+        console.error('[x-feed-blocker] Failed to extract tweet:', error);
+      }
+    });
+
+    // Capture recommendations for tracking
+    if (tweets.length > 0 && window.RecommendationTracker) {
+      window.RecommendationTracker.capture('twitter', tweets).catch(err => {
+        console.error('[x-feed-blocker] Failed to track recommendations:', err);
+      });
+    }
+
+    return tweets;
+  };
+
   const hideFeeds = () => {
     if (!isHomePage()) {
       revealHidden();
       return;
     }
+
+    // Extract tweets before hiding
+    extractTweets();
+
     const feedNodes = new Set();
     FEED_SELECTORS.forEach((selector) => {
       document.querySelectorAll(selector).forEach((node) => {

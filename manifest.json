@@ -6,6 +6,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://www.linkedin.com/*",
@@ -14,19 +17,23 @@
     "http://127.0.0.1:11400/*",
     "http://localhost:11400/*"
   ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Feed Recommendation Tracker"
+  },
   "content_scripts": [
     {
       "matches": [
         "https://www.youtube.com/*"
       ],
-      "js": ["local-ai.js", "youtube-home-blocker.js"],
+      "js": ["recommendation-tracker.js", "local-ai.js", "youtube-home-blocker.js"],
       "run_at": "document_idle"
     },
     {
       "matches": [
         "https://www.linkedin.com/*"
       ],
-      "js": ["linkedin-feed-blocker.js"],
+      "js": ["recommendation-tracker.js", "linkedin-feed-blocker.js"],
       "run_at": "document_idle"
     },
     {
@@ -34,7 +41,7 @@
         "https://x.com/*",
         "https://twitter.com/*"
       ],
-      "js": ["x-feed-blocker.js"],
+      "js": ["recommendation-tracker.js", "x-feed-blocker.js"],
       "run_at": "document_idle"
     }
   ]
