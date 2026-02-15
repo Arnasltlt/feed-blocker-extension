@@ -1,0 +1,8 @@
+.git
+.venv
+venv
+node_modules
+.cursor
+*.log
+.env
+.DS_Store

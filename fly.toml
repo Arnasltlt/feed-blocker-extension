@@ -7,6 +7,7 @@ app = 'feed-blocking-server'
 primary_region = 'ord'
 
 [build]
+  dockerfile = "Dockerfile"
 
 [env]
   PORT = '8080'

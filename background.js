@@ -2,7 +2,8 @@
 const RERANK_MESSAGE_TYPE = 'RERANK_VIDEOS';
 const RERANK_ENDPOINTS = [
   'http://127.0.0.1:11400/rerank',
-  'http://localhost:11400/rerank'
+  'http://localhost:11400/rerank',
+  'https://feed-blocking-server.fly.dev/rerank'
 ];
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -46,6 +47,6 @@ async function handleRerankRequest(payload) {
     }
   }
 
-  throw lastError || new Error('Unable to reach local Groq server at http://127.0.0.1:11400/rerank');
+  throw lastError || new Error('Unable to reach rerank server (local or feed-blocking-server.fly.dev)');
 }
 

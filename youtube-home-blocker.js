@@ -836,7 +836,6 @@
     if (!Array.isArray(truncated) || truncated.length === 0) {
       return null;
     }
-    
     // Attempt Local AI first
     if (window.LocalAIService) {
       const available = await window.LocalAIService.isAvailable();

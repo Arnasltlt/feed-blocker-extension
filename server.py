@@ -86,6 +86,69 @@ USER_INSTRUCTIONS = (
     "Return the grouped structure strictly as JSON following the required schema."
 )
 
+# Summary endpoint schema and prompts
+SUMMARY_RESPONSE_SCHEMA = {
+    "name": "feed_summary",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "topics": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 5,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "title": {"type": "string"},
+                        "summary": {"type": "string"},
+                        "citations": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 5,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "quote": {"type": "string"},
+                                    "attribution": {"type": "string"}
+                                },
+                                "required": ["quote", "attribution"]
+                            }
+                        }
+                    },
+                    "required": ["title", "summary", "citations"]
+                }
+            }
+        },
+        "required": ["topics"],
+        "additionalProperties": False
+    }
+}
+
+SUMMARY_SYSTEM_PROMPT = (
+    "You are a news digest curator analyzing social media feeds from YouTube, LinkedIn, and Twitter/X. "
+    "Your job is to identify the hottest topics people are talking about and create a concise 'Talk of the Town' summary. "
+    "Each topic must include direct quotes or paraphrased statements with explicit attribution to specific people or sources from the feed. "
+    "Never invent quotes or attributions—only cite what appears in the provided feed items. "
+    "Never include markdown, explanations, code fences, or extra fields. "
+)
+
+SUMMARY_USER_INSTRUCTIONS = (
+    "Analyze the provided feed items and identify the 3-5 hottest topics across all platforms. "
+    "For each topic:\n"
+    "1. Create a clear, engaging title that captures the essence of the discussion\n"
+    "2. Write a paragraph (2-4 sentences) summarizing what people are saying, key perspectives, and why it's trending\n"
+    "3. Include 1-5 citations: direct quotes or close paraphrases with explicit attribution (person name, channel, or source from the feed). "
+    "   Example: {\"quote\": \"AI will change everything in the next 5 years\", \"attribution\": \"John Smith (Tech Daily)\"}\n"
+    "4. Only cite content that appears in the feed items—never invent quotes or sources\n"
+    "5. Focus on topics that appear multiple times or from multiple sources\n"
+    "6. Prioritize substantive discussions over clickbait or trivial content\n"
+    "Return exactly 3-5 topics in order of relevance/popularity."
+)
+
+MAX_SUMMARY_ITEMS = 100
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
@@ -200,6 +263,132 @@ def sanitize_grouped_response(
     return sanitized
 
 
+def normalize_feed_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Normalize and deduplicate feed items from multiple platforms."""
+    normalized: List[Dict[str, Any]] = []
+    seen_titles = set()
+    
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        title = str(entry.get("title") or entry.get("text") or "").strip()
+        platform = str(entry.get("platform") or "").strip()
+        author = str(entry.get("channel") or entry.get("author") or "").strip()
+        
+        if not title or title in seen_titles:
+            continue
+            
+        seen_titles.add(title)
+        normalized.append({
+            "title": title,
+            "platform": platform,
+            "author": author
+        })
+        
+        if len(normalized) >= MAX_SUMMARY_ITEMS:
+            break
+    
+    return normalized
+
+
+def format_feed_items(items: List[Dict[str, Any]]) -> str:
+    """Format feed items for the summary prompt."""
+    lines = []
+    for idx, item in enumerate(items, 1):
+        platform = item.get("platform") or "unknown"
+        author = item.get("author") or "Unknown"
+        lines.append(f"{idx}. [{platform.upper()}] {item['title']} (by {author})")
+    return "\n".join(lines)
+
+
+def create_item_hash(items: List[Dict[str, Any]]) -> str:
+    """Create a hash from feed items for caching/rate limiting."""
+    if not items:
+        return ""
+    titles = sorted([str(item.get("title", "")).strip() for item in items if item.get("title")])
+    return "|".join(titles[:50])  # Use first 50 titles for hash
+
+
+def summarize_with_groq(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Call Groq API to generate topic summaries."""
+    if not GROQ_API_KEY:
+        logger.warning("GROQ_API_KEY is not set. Returning empty topics.")
+        return []
+
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"{SUMMARY_USER_INSTRUCTIONS}\n\nFeed items:\n{format_feed_items(items)}",
+            },
+        ],
+        "temperature": 0.3,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": SUMMARY_RESPONSE_SCHEMA,
+        },
+    }
+
+    try:
+        response = requests.post(
+            GROQ_API_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30,
+        )
+        if not response.ok:
+            error_body = response.text
+            logger.error("Groq API error (status %d): %s", response.status_code, error_body)
+            return []
+        
+        completion = response.json()
+        choice = completion.get("choices", [{}])[0] or {}
+        message = (choice.get("message") or {}).get("content") or ""
+        
+        if not message.strip():
+            logger.error("Groq returned empty content: %s", json.dumps(completion)[:800])
+            return []
+        
+        try:
+            parsed = json.loads(strip_code_fences(message))
+        except json.JSONDecodeError as exc:
+            logger.error("Unable to parse Groq response as JSON: %s", message)
+            return []
+        
+        topics = parsed.get("topics", [])
+        if not isinstance(topics, list):
+            return []
+        
+        # Validate and clean topics
+        validated_topics = []
+        for topic in topics:
+            if isinstance(topic, dict) and "title" in topic and "summary" in topic:
+                validated = {
+                    "title": str(topic["title"])[:100],
+                    "summary": str(topic["summary"])[:500]
+                }
+                if isinstance(topic.get("citations"), list):
+                    validated["citations"] = [
+                        {"quote": str(c.get("quote", ""))[:300], "attribution": str(c.get("attribution", ""))[:100]}
+                        for c in topic["citations"][:5]
+                        if isinstance(c, dict) and c.get("quote") and c.get("attribution")
+                    ]
+                validated_topics.append(validated)
+        
+        return validated_topics
+        
+    except (requests.RequestException, KeyError, json.JSONDecodeError) as exc:
+        logger.error("Groq request failed: %s", exc)
+        if hasattr(exc, "response") and exc.response is not None:
+            logger.error("Response body: %s", exc.response.text)
+        return []
+
+
 def rerank_with_groq(videos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not GROQ_API_KEY:
         logger.warning("GROQ_API_KEY is not set. Returning the original grouping.")
@@ -290,7 +479,49 @@ def rerank_endpoint():
     return jsonify({"groups": curated})
 
 
+@app.route("/summarize", methods=["POST"])
+def summarize_endpoint():
+    """Generate a 'Talk of the Town' summary from feed items."""
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items")
+    
+    if not isinstance(items, list):
+        return jsonify({"error": "Payload must include an 'items' array."}), 400
+    
+    normalized = normalize_feed_items(items)
+    if not normalized:
+        return jsonify({"topics": []})
+    
+    # Rate limiting: 30 seconds minimum between identical requests
+    item_hash = create_item_hash(normalized)
+    now = time.time()
+    cache_key = f"summary_{item_hash}"
+    last_request_time = request_cache.get(cache_key, 0)
+    time_since_last = now - last_request_time
+    
+    if time_since_last < 30:
+        logger.info(
+            "Rate limit: skipping summary request (last request %.1fs ago)",
+            time_since_last,
+        )
+        return jsonify({
+            "topics": [],
+            "message": f"Please wait {int(30 - time_since_last)} more seconds before requesting another summary."
+        })
+    
+    request_cache[cache_key] = now
+    # Clean old entries
+    if len(request_cache) > 100:
+        oldest_key = min(request_cache.items(), key=lambda x: x[1])[0]
+        del request_cache[oldest_key]
+    
+    topics = summarize_with_groq(normalized)
+    return jsonify({"topics": topics})
+
+
 if __name__ == "__main__":
-    logger.info("Starting custom feed server on http://127.0.0.1:%s", SERVER_PORT)
-    app.run(host="127.0.0.1", port=SERVER_PORT, debug=False)
+    port = int(os.environ.get("PORT", SERVER_PORT))
+    host = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
+    logger.info("Starting custom feed server on http://%s:%s", host, port)
+    app.run(host=host, port=port, debug=False)
 

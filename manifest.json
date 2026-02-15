@@ -14,6 +14,7 @@
     "https://www.linkedin.com/*",
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://feed-blocking-server.fly.dev/*",
     "http://127.0.0.1:11400/*",
     "http://localhost:11400/*"
   ],
@@ -26,14 +27,21 @@
       "matches": [
         "https://www.youtube.com/*"
       ],
-      "js": ["recommendation-tracker.js", "local-ai.js", "youtube-home-blocker.js"],
+      "js": [
+        "recommendation-tracker.js",
+        "local-ai.js",
+        "youtube-home-blocker.js"
+      ],
       "run_at": "document_idle"
     },
     {
       "matches": [
         "https://www.linkedin.com/*"
       ],
-      "js": ["recommendation-tracker.js", "linkedin-feed-blocker.js"],
+      "js": [
+        "recommendation-tracker.js",
+        "linkedin-feed-blocker.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -41,7 +49,10 @@
         "https://x.com/*",
         "https://twitter.com/*"
       ],
-      "js": ["recommendation-tracker.js", "x-feed-blocker.js"],
+      "js": [
+        "recommendation-tracker.js",
+        "x-feed-blocker.js"
+      ],
       "run_at": "document_idle"
     }
   ]

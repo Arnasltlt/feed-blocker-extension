@@ -194,3 +194,7 @@ async function clearData() {
 
 // Load stats on popup open
 loadStats();
+
+document.getElementById('openFeedBtn').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'feed.html' });
+});
