@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "facebook.com/tr",
+      "resourceTypes": ["image", "xmlhttprequest", "ping"],
+      "initiatorDomains": ["facebook.com", "www.facebook.com"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "facebook.com/ajax/bz",
+      "resourceTypes": ["xmlhttprequest", "ping"],
+      "initiatorDomains": ["facebook.com", "www.facebook.com"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "facebook.com/adspixel",
+      "resourceTypes": ["image", "xmlhttprequest", "ping"],
+      "initiatorDomains": ["facebook.com", "www.facebook.com"]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "facebook.com/ajax/activity",
+      "resourceTypes": ["xmlhttprequest"],
+      "initiatorDomains": ["facebook.com", "www.facebook.com"]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "facebook.com/ajax/logging",
+      "resourceTypes": ["xmlhttprequest", "ping"],
+      "initiatorDomains": ["facebook.com", "www.facebook.com"]
+    }
+  }
+]

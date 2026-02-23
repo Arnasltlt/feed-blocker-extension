@@ -1,0 +1,183 @@
+/* Block Facebook noise on messages page - only when body has toggle class (JS-controlled for SPA nav) */
+body.feed-blocker-on-messages nav[aria-label="Facebook"],
+body.feed-blocker-on-messages [role="navigation"][aria-label="Facebook"],
+body.feed-blocker-on-messages div[role="navigation"][aria-label="Facebook"],
+body.feed-blocker-on-messages [role="navigation"]:has([aria-label="Notifications"]) {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Leftover header elements: logo and search bar */
+body.feed-blocker-on-messages a[aria-label="Facebook"],
+body.feed-blocker-on-messages [aria-label="Search Facebook"],
+body.feed-blocker-on-messages [role="combobox"][aria-label="Search Facebook"],
+body.feed-blocker-on-messages [aria-label="Search Messenger"],
+body.feed-blocker-on-messages [placeholder*="Search Facebook"],
+body.feed-blocker-on-messages [placeholder*="Search Messenger"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Left sidebar - shortcuts, Pages, Groups, Marketplace, Gaming, Watch */
+body.feed-blocker-on-messages div[data-pagelet="LeftRail"],
+body.feed-blocker-on-messages [data-pagelet="LeftRail"],
+body.feed-blocker-on-messages [aria-label="Facebook"] [role="navigation"] ul[role="list"],
+body.feed-blocker-on-messages [data-pagelet="LeftColumn"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Stories tray */
+body.feed-blocker-on-messages [data-pagelet="Stories"],
+body.feed-blocker-on-messages [aria-label="Stories"],
+body.feed-blocker-on-messages [data-pagelet*="Story"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Right sidebar / contacts panel (non-messenger) - feed suggestions, sponsored */
+body.feed-blocker-on-messages [data-pagelet="RightColumn"],
+body.feed-blocker-on-messages [data-pagelet="RightRail"],
+body.feed-blocker-on-messages [aria-label="Suggested for you"],
+body.feed-blocker-on-messages [aria-label="Sponsored"],
+body.feed-blocker-on-messages [data-pagelet*="RightColumn"],
+body.feed-blocker-on-messages [data-pagelet*="RightRail"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Create Post / feed composer - exclude message composer (Message/Chat/Conversation) */
+body.feed-blocker-on-messages [aria-label="Create a post"],
+body.feed-blocker-on-messages [aria-label="Create post"],
+body.feed-blocker-on-messages [data-pagelet="FeedComposer"],
+body.feed-blocker-on-messages [data-pagelet*="FeedComposer"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Sponsored / ad containers */
+body.feed-blocker-on-messages [aria-label="Sponsored"],
+body.feed-blocker-on-messages [data-pagelet*="Ads"],
+body.feed-blocker-on-messages [data-pagelet*="Ad"],
+body.feed-blocker-on-messages [data-testid="ad_slot"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Notification dropdown content - hide popup feed */
+body.feed-blocker-on-messages [role="dialog"][aria-label*="Notification"],
+body.feed-blocker-on-messages [aria-label="Notifications"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Bottom-left notification popups / toasts */
+body.feed-blocker-on-messages [role="alert"],
+body.feed-blocker-on-messages [data-pagelet="Toast"],
+body.feed-blocker-on-messages [data-pagelet="Toaster"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Feed content that may mount in background */
+body.feed-blocker-on-messages [data-pagelet="Feed"],
+body.feed-blocker-on-messages [data-pagelet="MainFeed"],
+body.feed-blocker-on-messages [data-pagelet*="Feed"]:not([data-pagelet*="Message"]):not([data-pagelet*="Conversation"]) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Messenger Lite branding banner */
+#messenger-lite-banner {
+  position: relative;
+  height: 36px;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 2;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-bottom: 1px solid #2a2a2a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  gap: 8px;
+  user-select: none;
+}
+
+#messenger-lite-banner .mlb-bubble {
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+#messenger-lite-banner .mlb-bubble-body {
+  width: 20px;
+  height: 17px;
+  background: #fff;
+  border-radius: 50%;
+  position: relative;
+}
+
+#messenger-lite-banner .mlb-bubble-body::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 0 0 0 5px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+#messenger-lite-banner .mlb-bolt {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  line-height: 1;
+  color: #1a1a1a;
+}
+
+#messenger-lite-banner .mlb-title {
+  color: rgba(255,255,255,.75);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+#messenger-lite-banner .mlb-tag {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.4);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+body.feed-blocker-on-messages [data-messenger-lite-host="1"] {
+  min-height: 36px !important;
+  max-height: 36px !important;
+  overflow: hidden !important;
+}
+
+body.feed-blocker-on-messages [data-messenger-lite-host="1"] > :not(#messenger-lite-banner) {
+  display: none !important;
+}
+
+/* Expand messages panel to full viewport - messenger.com-like layout */
+body.feed-blocker-on-messages [data-pagelet="MainContent"],
+body.feed-blocker-on-messages [role="main"][aria-label*="Conversation"],
+body.feed-blocker-on-messages [role="main"][aria-label*="Message"],
+body.feed-blocker-on-messages [data-pagelet*="Messenger"],
+body.feed-blocker-on-messages [data-pagelet*="Message"] {
+  max-width: 100% !important;
+  flex: 1 1 100% !important;
+}

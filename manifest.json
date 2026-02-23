@@ -7,17 +7,29 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://www.linkedin.com/*",
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://www.facebook.com/*",
+    "https://www.messenger.com/*",
     "https://feed-blocking-server.fly.dev/*",
     "http://127.0.0.1:11400/*",
     "http://localhost:11400/*"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "fb_messages_block",
+        "enabled": true,
+        "path": "fb-messages-block-rules.json"
+      }
+    ]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Feed Recommendation Tracker"
@@ -54,6 +66,18 @@
         "x-feed-blocker.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.facebook.com/messages*"
+      ],
+      "css": [
+        "facebook-messages-header-blocker.css"
+      ],
+      "js": [
+        "facebook-messages-header-blocker.js"
+      ],
+      "run_at": "document_start"
     }
   ]
 }
