@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Focus Feed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      background: #0b1220;
+      color: #e7e9ea;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .popup-header {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .popup-logo {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      background: linear-gradient(100deg, #fff 0%, #ffcf83 40%, #8ec5ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .popup-open-btn {
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(94,167,255,0.15);
+      border: 1px solid rgba(94,167,255,0.3);
+      color: #5ea7ff;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .popup-open-btn:hover { background: rgba(94,167,255,0.25); }
+
+    /* Brief state */
+    .brief-eyebrow {
+      padding: 12px 16px 0;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #ffb454;
+    }
+    .brief-headline {
+      padding: 4px 16px 10px;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      color: #f4f7fb;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .topic-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: default;
+    }
+    .topic-row:hover { background: rgba(255,255,255,0.03); }
+    .topic-row-body { flex: 1; min-width: 0; }
+    .topic-row-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #ffb454;
+      margin-bottom: 2px;
+    }
+    .topic-row-liner {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #c9d5e3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .topic-explore {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: transparent;
+      border: 1px solid rgba(94,167,255,0.25);
+      color: #5ea7ff;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-top: 1px;
+    }
+    .topic-explore:hover { background: rgba(94,167,255,0.12); }
+
+    /* Quiet state */
+    .quiet-block {
+      padding: 28px 20px;
+      text-align: center;
+      background: rgba(255,180,84,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .quiet-title { font-size: 20px; font-weight: 700; color: #f4f7fb; margin-bottom: 6px; letter-spacing: -0.02em; }
+    .quiet-since { font-size: 13px; color: #73849d; line-height: 1.5; margin-bottom: 3px; }
+    .quiet-permission { font-size: 12px; color: #5a6a7e; font-style: italic; }
+
+    /* Empty state */
+    .empty-block {
+      padding: 32px 20px;
+      text-align: center;
+    }
+    .empty-icon { font-size: 24px; margin-bottom: 10px; }
+    .empty-title { font-size: 15px; font-weight: 600; color: #c9d5e3; margin-bottom: 6px; }
+    .empty-sub { font-size: 13px; color: #73849d; line-height: 1.5; }
+
+    .popup-footer {
+      padding: 10px 16px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .popup-footer-label { font-size: 11px; color: #4a5a6e; }
+    .popup-footer-link {
+      font-size: 11px;
+      color: #5ea7ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+    }
+    .popup-footer-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="popup-header">
+    <span class="popup-logo">Focus Feed</span>
+    <button class="popup-open-btn" id="open-full">Open full feed ↗</button>
+  </div>
+  <div id="content"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -7,6 +7,18 @@ const RERANK_ENDPOINTS = [
 ];
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === 'OPEN_FEED_PAGE' && message.url) {
+    chrome.tabs.create({ url: message.url }, () => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        sendResponse({ ok: false, error: err.message });
+      } else {
+        sendResponse({ ok: true });
+      }
+    });
+    return true;
+  }
+
   if (!message || message.type !== RERANK_MESSAGE_TYPE) {
     return false;
   }

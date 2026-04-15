@@ -14,6 +14,7 @@
   const CHECK_DELAY_MS = 120;
   const RERANK_MESSAGE_TYPE = 'RERANK_VIDEOS';
   const MAX_RERANK_ITEMS = 30;
+  const DIRECT_RERANK_ENDPOINT = 'https://feed-blocking-server.fly.dev/rerank';
   const CUSTOM_FEED_TITLE = 'Custom feed (Groq)';
   const CUSTOM_FEED_DESCRIPTION = 'Videos reordered for deep, learning-focused sessions.';
   const LOADING_DESCRIPTION = 'Re-ranking your recommendations with Groq. This may take a moment.';
@@ -368,10 +369,14 @@
         null;
       const channel =
         (channelNode && typeof channelNode.textContent === 'string' && channelNode.textContent.trim()) || '';
+      const metaSpans = Array.from(item.querySelectorAll('#metadata-line span.inline-metadata-item, ytd-video-meta-block span.inline-metadata-item'));
+      const viewText = metaSpans.find((s) => s.textContent.toLowerCase().includes('view'));
+      const viewCount = viewText ? viewText.textContent.trim() : '';
       titles.push({
         title: text,
         url,
         channel,
+        viewCount,
         position: titles.length
       });
     });
@@ -655,6 +660,22 @@
     });
   };
 
+  const fetchRerankDirectly = async (videos) => {
+    const response = await fetch(DIRECT_RERANK_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ videos })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} when calling ${DIRECT_RERANK_ENDPOINT}`);
+    }
+
+    return await response.json();
+  };
+
   const normalizeVideoEntry = (video, fallbackPosition = 0) => {
     if (!video || typeof video !== 'object') {
       return null;
@@ -732,6 +753,27 @@
       });
     }
     return sanitized;
+  };
+
+  const isCatchAllGroupedResponse = (groups, allowedVideos) => {
+    if (!Array.isArray(groups) || groups.length !== 1 || !Array.isArray(allowedVideos)) {
+      return false;
+    }
+    const [group] = groups;
+    if (!group || typeof group !== 'object') {
+      return false;
+    }
+    const category = typeof group.category === 'string' ? group.category.trim().toLowerCase() : '';
+    if (!['all videos', 'all video', 'all'].includes(category)) {
+      return false;
+    }
+    const groupedVideos = Array.isArray(group.videos) ? group.videos : [];
+    if (groupedVideos.length !== allowedVideos.length) {
+      return false;
+    }
+    const groupedUrls = groupedVideos.map((video) => video && video.url).join('|');
+    const allowedUrls = allowedVideos.map((video) => video && video.url).join('|');
+    return groupedUrls === allowedUrls;
   };
 
   const cloneGroups = (groups) => {
@@ -856,18 +898,40 @@
       }
     }
 
-    try {
-      const response = await sendMessageToBackground({ videos: truncated });
+    const finalizeRemoteGroups = (response, sourceLabel) => {
       if (!response || !Array.isArray(response.groups)) {
         return null;
       }
       const curated = sanitizeGroupedResponse(response.groups, truncated);
+      if (isCatchAllGroupedResponse(curated, truncated)) {
+        console.warn(`[feed-blocker] Ignoring catch-all rerank response from ${sourceLabel}`);
+        return null;
+      }
       setCachedRerank(videoHash, curated);
       return { groups: appendRemainderGroup(curated, remainder), isLocal: false };
+    };
+
+    try {
+      const response = await sendMessageToBackground({ videos: truncated });
+      const backgroundResult = finalizeRemoteGroups(response, 'background');
+      if (backgroundResult) {
+        return backgroundResult;
+      }
     } catch (error) {
-      console.error('[feed-blocker] Custom feed request failed:', error);
-      return null;
+      console.error('[feed-blocker] Background rerank request failed:', error);
     }
+
+    try {
+      const directResponse = await fetchRerankDirectly(truncated);
+      const directResult = finalizeRemoteGroups(directResponse, 'direct fetch');
+      if (directResult) {
+        return directResult;
+      }
+    } catch (error) {
+      console.error('[feed-blocker] Direct rerank request failed:', error);
+    }
+
+    return null;
   };
 
   const updateFeedWithCustomList = (videos, feedContainer) => {

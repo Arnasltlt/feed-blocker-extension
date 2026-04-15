@@ -14,7 +14,9 @@ A browser extension that blocks distracting feeds on YouTube, LinkedIn, and X (T
 2. Open Chrome/Chromium and navigate to `chrome://extensions/`
 3. Enable "Developer mode" (toggle in top right)
 4. Click "Load unpacked"
-5. Select this directory
+5. In the file picker, open this repo, then select the **`extension`** folder (the one whose path ends in `/extension`).  
+   **Do not** select the repo root: if you have `.venv` there, Chrome will fail with `__pycache__`.  
+   Optional: run `bash scripts/stage-chrome-extension.sh` and load the `/tmp/...` folder it prints.
 
 ## Supported Browsers
 
@@ -23,10 +25,12 @@ A browser extension that blocks distracting feeds on YouTube, LinkedIn, and X (T
 
 ## Local Groq-Powered Custom Feed (YouTube)
 
-1. Install dependencies: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+1. Install dependencies (use a venv **outside** the repo if you often “Load unpacked” the repo root by mistake):  
+   `python3 -m venv ~/.venvs/feed-blocking && ~/.venvs/feed-blocking/bin/pip install -r server/requirements.txt`  
+   Or: `cd server && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
 2. Export your Groq API key: `export GROQ_API_KEY=your_key_here`
 3. (Optional) Override defaults: `GROQ_MODEL` (default `openai/gpt-oss-20b` for the fastest Structured Output support), `CUSTOM_FEED_MAX_VIDEOS` (default `30`), `CUSTOM_FEED_SERVER_PORT` (default `11400`). The server enables Groq’s **Structured Outputs**, so stick to models that support JSON schema decoding (the default does).
-4. Start the server: `python server.py`
+4. Start the server from the repo root: `python server/server.py` (or `cd server && python server.py`)
 5. Keep the server running while you browse YouTube. The content script will call `http://127.0.0.1:11400/rerank` via the extension’s background service worker and render the grouped, reordered list.
 
 If the server is unreachable or the key is missing, the extension automatically falls back to the original (blocked) title list.
@@ -37,10 +41,14 @@ The extension uses content scripts to detect and hide feed elements on each plat
 
 ## Files
 
-- `manifest.json` - Extension configuration
-- `youtube-home-blocker.js` - YouTube feed blocking logic
-- `linkedin-feed-blocker.js` - LinkedIn feed blocking logic
-- `x-feed-blocker.js` - X/Twitter feed blocking logic
+Extension sources live under **`extension/`** (load that path in Chrome):
+
+- `extension/manifest.json` - Extension configuration
+- `extension/youtube-home-blocker.js` - YouTube feed blocking logic
+- `extension/linkedin-feed-blocker.js` - LinkedIn feed blocking logic
+- `extension/x-feed-blocker.js` - X/Twitter feed blocking logic
+
+`server/server.py` and your virtualenv are not part of the unpacked extension. See **`CHROME-LOAD-UNPACKED.txt`** if Chrome reports `__pycache__`.
 
 ## License
 

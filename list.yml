@@ -1,0 +1,9 @@
+# Task queue for agents. Add work items here; keep domain knowledge in context/.
+#
+# Per-task fields (use for each entry under tasks:):
+#   title: string
+#   status: pending | in_progress | done | cancelled
+#   context_domains: list of context/ domain folder names (e.g. extension, server)
+#   allowed_actions: optional list of procedure names from actions/SUMMARY.md
+
+tasks: []

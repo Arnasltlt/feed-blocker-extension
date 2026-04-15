@@ -2,16 +2,39 @@
 (() => {
   const STORAGE_KEY = 'feed_recommendations';
   const MAX_ENTRIES = 200; // Kept low to avoid kQuotaBytes in Atlas and other browsers with strict limits
+  const MAX_ITEMS_PER_CAPTURE = 50;
+
+  const clampText = (value, maxLength) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+
+  const createRecommendationSignature = (items) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return '';
+    }
+    return items
+      .slice(0, 20)
+      .map((item) => `${item.url || ''}::${item.title || ''}::${item.author || item.channel || ''}`)
+      .join('|');
+  };
 
   /**
    * Slims recommendation objects to reduce storage usage
    */
-  const slimRecommendations = (items) => {
+  const slimRecommendations = (platform, items) => {
     if (!Array.isArray(items)) return items;
-    return items.slice(0, 50).map((r) => ({
-      title: (r.title || '').slice(0, 120),
-      url: (r.url || '').slice(0, 200),
-      channel: (r.channel || '').slice(0, 80)
+    return items.slice(0, MAX_ITEMS_PER_CAPTURE).map((r, index) => ({
+      title: clampText(r.title, 180),
+      url: clampText(r.url, 240),
+      channel: clampText(r.channel, 80),
+      author: clampText(r.author, 80),
+      fullText: clampText(r.fullText || r.text || r.title, platform === 'youtube' ? 220 : 420),
+      context: clampText(r.context, 120),
+      viewCount: clampText(r.viewCount, 30),
+      likeCount: clampText(r.likeCount, 30),
+      retweetCount: clampText(r.retweetCount, 30),
+      replyCount: clampText(r.replyCount, 30),
+      reactionCount: clampText(r.reactionCount, 30),
+      commentCount: clampText(r.commentCount, 30),
+      position: Number.isFinite(r.position) ? r.position : index
     }));
   };
 
@@ -38,12 +61,18 @@
       return;
     }
 
-    const slimmed = slimRecommendations(recommendations);
+    const slimmed = slimRecommendations(platform, recommendations).filter((item) => item.title);
+    if (slimmed.length === 0) {
+      return;
+    }
+
+    const signature = createRecommendationSignature(slimmed);
     const entry = {
       timestamp: Date.now(),
       date: new Date().toISOString(),
       platform,
       url: window.location.href.slice(0, 200),
+      signature,
       count: slimmed.length,
       recommendations: slimmed
     };
@@ -51,6 +80,16 @@
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
       let existingData = result[STORAGE_KEY] || [];
+
+      for (let index = existingData.length - 1; index >= 0; index -= 1) {
+        const prior = existingData[index];
+        if (prior && prior.platform === platform) {
+          if (prior.signature === signature) {
+            return;
+          }
+          break;
+        }
+      }
 
       existingData.push(entry);
       if (existingData.length > MAX_ENTRIES) {

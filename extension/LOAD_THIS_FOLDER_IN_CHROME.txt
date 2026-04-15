@@ -1,0 +1,1 @@
+Load THIS folder in Chrome (Load unpacked). Do not select the parent repository folder.

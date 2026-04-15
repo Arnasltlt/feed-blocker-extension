@@ -1,0 +1,17 @@
+Chrome "Load unpacked" — read this first
+==========================================
+
+The path in the error showed the REPO ROOT (e.g. .../feed blocking extenstion).
+That folder is NOT valid: it contains Python virtualenvs (.venv) with __pycache__
+directories. Chrome refuses any extension tree that includes __pycache__.
+
+You must load ONE of these:
+
+  A) Select the inner "extension" folder only:
+     .../feed blocking extenstion/extension
+     (this folder contains manifest.json)
+
+  B) Or run:  bash scripts/stage-chrome-extension.sh
+     Then "Load unpacked" on the folder path it prints (a clean copy under /tmp).
+
+Do not select the parent "feed blocking extenstion" folder.

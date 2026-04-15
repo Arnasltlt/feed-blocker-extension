@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Curated Feed</title>
+  <link rel="stylesheet" href="feed.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-area">
+        <h1>Focus Feed</h1>
+        <p class="subtitle">Your news, on your terms.</p>
+      </div>
+      <div class="actions">
+        <label class="model-picker" for="model-select">
+          <span class="model-picker-label">Brief Model</span>
+          <select id="model-select" class="model-select">
+            <option value="google/gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+            <option value="google/gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+          </select>
+        </label>
+        <label class="model-picker" for="research-tool-select">
+          <span class="model-picker-label">Explore with</span>
+          <select id="research-tool-select" class="model-select">
+            <option value="perplexity">Perplexity</option>
+            <option value="grok">Grok</option>
+            <option value="chatgpt">ChatGPT</option>
+            <option value="google">Google</option>
+          </select>
+        </label>
+        <button id="summarize-btn" class="primary-btn">Summarize My Feed</button>
+        <div class="utility-actions">
+          <button id="load-mock-btn" class="utility-btn">Mock data</button>
+          <button id="clear-history-btn" class="utility-btn danger">Clear history</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="feed-content">
+      <section id="summary-section" class="summary-section hidden">
+        <div class="summary-hero">
+          <div class="summary-copy">
+            <p class="summary-eyebrow">Talk of the Town</p>
+            <h2 id="brief-headline">Your feed, distilled.</h2>
+            <p id="brief-deck" class="summary-deck">The strongest recurring themes, why they matter, and what to click first.</p>
+          </div>
+        </div>
+        <div id="summary-topics" class="summary-topics">
+          <!-- Topic rows will be injected here -->
+        </div>
+      </section>
+
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon">🌱</div>
+        <h2>No recommendations yet</h2>
+        <p>Visit blocked sites to collect feeds, or load mock data to see how it looks.</p>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="feed.js"></script>
+</body>
+</html>
